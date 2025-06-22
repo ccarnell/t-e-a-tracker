@@ -1,30 +1,32 @@
 ![TEA Tracker](https://liminalist.ai/t-e-a-opengraph-image.png)
 
-# TEA Tracker
+<h2 align="left">
+  TEA Tracker
+</h2>
+<h3 align="left">
+ <stong>Minimalist Time, Energy, and Attention Tracker</strong>
+</h3>
 
 <p align="left">
- Minimalist Time, Energy, and Attention Tracker
-</p>
-
-<p align="left">
-  <a><strong>· Auto timestamp · </strong></a>
+  · Auto timestamp ·
   </br>
-  <a><strong>· Select Energy Level · </strong></a>
+  · Select Energy Level ·
   </br>
-  <a><strong>· Select Attention Level · </strong></a>
+  · Select Attention Level ·
   </br>
-  <a> · <strong> One-line Quick Note · </strong></a>
+  · <em>(Optional)</em> One-line Quick Note ·
   </br>
-  <a><strong> · <strong> Screenshot Upload · </strong></a>
+  · <em>(Optional)</em> Screenshot Upload ·
   </br>
-  <a><strong>· Users have saved logs · </strong></a>
+  · Users' logged entries are saved ·
   </br>
-  <a>· Non-users logs are hosted locally </a>
+  </br>
+  · <em>Non-users' logs are hosted locally</em> ·
 
 <h2 align="left">Sign Up for MASSIVE User Benefits!</h2>
   <p align="left">
-    <a><strong>🎉 Randomized celebration animations for positive reinforcement of logging entries. Good job! 🎉</strong></a>
-</p>
+    <a><strong>🎉 Like celebration animations after an Entry Log. POSITIVE REINFORCEMENT! YEAH! 🎉</strong></a>
+  </p>
 <br/>
 
 
