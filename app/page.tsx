@@ -185,26 +185,26 @@ export default function TEATracker() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-4">
+    <div className="min-h-screen bg-gray-50 p-4 pb-safe">
       <div className="max-w-2xl mx-auto space-y-6">
         {/* Main Tracker Card */}
         <div className="w-full bg-white rounded-2xl shadow-lg p-4 sm:p-6 space-y-4 sm:space-y-6 relative">
           {/* Header and Auth in a flex container */}
-          <div className="flex justify-between items-start mb-6">
+          <div className="flex flex-col sm:flex-row sm:justify-between items-start gap-3 sm:gap-0 mb-6">
             {/* Header */}
             <div>
               <h1 className="text-xl sm:text-2xl font-bold text-gray-800 flex items-center gap-2">
                 <Brain className="w-5 sm:w-6 h-5 sm:h-6 text-indigo-600" />
-                TEA Tracker
+                Minimal T.E.A.
               </h1>
               <p className="text-xs sm:text-sm text-gray-500 mt-1">
-                Track your <span className="font-semibold">T</span>ime, <span className="font-semibold">E</span>nergy & <span className="font-semibold">A</span>ttention patterns
+                Simply track <span className="font-semibold">T</span>ime, <span className="font-semibold">E</span>nergy and <span className="font-semibold">A</span>ttention patterns
               </p>
             </div>
 
             {/* Auth Buttons */}
-            <div className="flex gap-2">
-              {/* ...paste your auth button code here... */}
+            <div className="flex gap-2 self-end sm:self-start">
+              {/* AUTH */}
             </div>
           </div>
 
@@ -214,18 +214,18 @@ export default function TEATracker() {
               <Zap className="w-3 sm:w-4 h-3 sm:h-4" />
               Energy Level
             </label>
-            <div className="grid grid-cols-5 gap-1 sm:gap-2">
+            <div className="grid grid-cols-5 gap-0.5 sm:gap-2">
               {energyLevels.map((level) => (
                 <button
                   key={level.value}
                   onClick={() => setEnergy(level.value)}
-                  className={`p-1.5 sm:p-3 rounded-lg border-2 transition-all ${energy === level.value
-                    ? 'border-indigo-500 bg-indigo-50 scale-105'
-                    : 'border-gray-200 hover:border-gray-300'
+                  className={`p-1 sm:p-3 rounded-lg border-2 transition-all ${energy === level.value
+                      ? 'border-indigo-500 bg-indigo-50 scale-105'
+                      : 'border-gray-200 hover:border-gray-300'
                     }`}
                 >
-                  <div className="text-lg sm:text-2xl mb-0.5 sm:mb-1">{level.icon}</div>
-                  <div className="text-[11px] sm:text-xs font-medium leading-tight break-all">{level.label}</div>
+                  <div className="text-base sm:text-2xl mb-0 sm:mb-1">{level.icon}</div>
+                  <div className="text-[9px] sm:text-xs font-medium leading-none">{level.label}</div>
                 </button>
               ))}
             </div>
@@ -261,7 +261,7 @@ export default function TEATracker() {
           {/* Optional Note */}
           <div className="space-y-2">
             <label className="flex items-center justify-between text-xs sm:text-sm font-medium text-gray-700">
-              <span>Text & Visual Context (Optional)</span>
+              <span>Text & Visual Context <em>(Optional)</em></span>
               <span className="text-xs text-gray-400">{noteLength}/{MAX_NOTE_LENGTH}</span>
             </label>
             <input
@@ -332,16 +332,9 @@ export default function TEATracker() {
             )}
           </button>
 
-          {/* Timestamp */}
-          <div className="text-center text-xs sm:text-sm text-gray-500">
-            {new Date().toLocaleString('en-US', {
-              weekday: 'short',
-              month: 'short',
-              day: 'numeric',
-              hour: 'numeric',
-              minute: '2-digit',
-              hour12: true
-            })}
+          {/* Timestamp - move to bottom and make smaller on mobile */}
+          <div className="text-center text-[10px] sm:text-xs text-gray-400 mt-4">
+            {formatTimestamp(new Date().toISOString())}
           </div>
 
           {/* Celebration Animation */}
