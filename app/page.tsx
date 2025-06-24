@@ -2,9 +2,10 @@
 
 import { useState, useEffect } from 'react'
 import Image from 'next/image'
-import { Camera, Brain, Zap, Target, Upload, CheckCircle, /*LogOut, LogIn, UserPlus */ } from 'lucide-react'
-// We'll add Supabase integration later
-// import { createClient } from '@/utils/supabase/client'
+import { Zap, Target, Upload, CheckCircle, MoreVertical, LogOut, ChevronLeft, ChevronRight } from 'lucide-react'
+import { createClient } from '@/lib/supabase/client'
+import { useRouter } from 'next/navigation'
+import type { User } from '@supabase/supabase-js'
 
 // Type definitions
 interface LogEntry {
@@ -23,36 +24,126 @@ interface Celebration {
 }
 
 export default function TEATracker() {
-  const [energy, setEnergy] = useState(0)
-  const [attention, setAttention] = useState('')
+  const [energy, setEnergy] = useState(3) // Default to Steady
+  const [attention, setAttention] = useState('focused') // Default to Focused
   const [note, setNote] = useState('')
   const [, setImage] = useState<File | null>(null)
   const [imagePreview, setImagePreview] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [, setShowSuccess] = useState(false)
   const [celebration, setCelebration] = useState<Celebration | null>(null)
-  const [isAuthenticated] = useState(false)
+  const [user, setUser] = useState<User | null>(null)
   const [logs, setLogs] = useState<LogEntry[]>([])
   const [noteLength, setNoteLength] = useState(0)
+  const [showMenu, setShowMenu] = useState(false)
+  const [expandedImage, setExpandedImage] = useState<string | null>(null)
+  const [currentPage, setCurrentPage] = useState(1)
+  
+  const router = useRouter()
+  const isAuthenticated = !!user
 
   const MAX_NOTE_LENGTH = 100
   const MAX_FILE_SIZE = 5 * 1024 * 1024 // 5MB
+  const ITEMS_PER_PAGE = 10
 
-  // Load logs from localStorage on mount
-  useEffect(() => {
-    const savedLogs = localStorage.getItem('tea-logs')
-    if (savedLogs) {
-      setLogs(JSON.parse(savedLogs))
-    }
-  }, [])
-
-  // Energy levels with icons and colors - Fixed alignment
+  // Energy levels with past tense labels - moved up to avoid hoisting issues
   const energyLevels = [
     { value: 1, label: 'Exhausted', icon: '🪫', color: '#ef4444' },
-    { value: 2, label: 'Low', icon: '☕', color: '#f97316' },
-    { value: 3, label: 'Moderate', icon: '🔋', color: '#eab308' },
-    { value: 4, label: 'Good', icon: '✨', color: '#84cc16' },
-    { value: 5, label: 'Peak', icon: '🚀', color: '#22c55e' }
+    { value: 2, label: 'Drained', icon: '☕', color: '#f97316' },
+    { value: 3, label: 'Steady', icon: '🔋', color: '#eab308' },
+    { value: 4, label: 'Energized', icon: '✨', color: '#84cc16' },
+    { value: 5, label: 'Peaked', icon: '🚀', color: '#22c55e' }
+  ]
+
+  // Pagination calculations
+  const totalPages = Math.ceil(logs.length / ITEMS_PER_PAGE)
+  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE
+  const endIndex = startIndex + ITEMS_PER_PAGE
+  const currentLogs = isAuthenticated ? logs.slice(startIndex, endIndex) : logs.slice(0, ITEMS_PER_PAGE)
+  const showPagination = isAuthenticated && logs.length > ITEMS_PER_PAGE
+
+  // Pagination handlers
+  const goToNextPage = () => {
+    if (currentPage < totalPages) {
+      setCurrentPage(currentPage + 1)
+    }
+  }
+
+  const goToPrevPage = () => {
+    if (currentPage > 1) {
+      setCurrentPage(currentPage - 1)
+    }
+  }
+
+  // Check authentication status and load logs
+  useEffect(() => {
+    const supabase = createClient()
+    
+    const getUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      setUser(user)
+    }
+    
+    getUser()
+
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null)
+    })
+
+    return () => subscription.unsubscribe()
+  }, [])
+
+  // Load logs based on authentication status
+  useEffect(() => {
+    const supabase = createClient()
+    
+    const loadLogs = async () => {
+      if (isAuthenticated && user) {
+        // Load from Supabase for authenticated users
+        const { data, error } = await supabase
+          .from('tea_logs')
+          .select('*')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false })
+        
+        if (error) {
+          console.error('Error loading logs:', error)
+          // Fallback to localStorage
+          const savedLogs = localStorage.getItem('tea-logs')
+          if (savedLogs) {
+            setLogs(JSON.parse(savedLogs))
+          }
+        } else {
+          // Transform Supabase data to match our LogEntry interface
+          const transformedLogs: LogEntry[] = data.map((log: Record<string, unknown>) => ({
+            id: log.id as string,
+            timestamp: log.timestamp as string,
+            energy: log.energy as number,
+            energyLabel: energyLevels.find(l => l.value === (log.energy as number))?.label || '',
+            attention: log.attention as string,
+            note: log.note as string | null,
+            imagePreview: log.image_url as string | null
+          }))
+          setLogs(transformedLogs)
+        }
+      } else {
+        // Load from localStorage for non-authenticated users
+        const savedLogs = localStorage.getItem('tea-logs')
+        if (savedLogs) {
+          setLogs(JSON.parse(savedLogs))
+        }
+      }
+    }
+
+    loadLogs()
+  }, [isAuthenticated, user])
+
+  // Attention states with consistent tense
+  const attentionStates = [
+    { value: 'scattered', label: 'Scattered', emoji: '🌪️' },
+    { value: 'focused', label: 'Focused', emoji: '💡' },
+    { value: 'hyperfocused', label: 'Hyperfocused', emoji: '🎯' }
   ]
 
   // Celebration animations
@@ -101,11 +192,6 @@ export default function TEATracker() {
   }
 
   const handleSubmit = async () => {
-    if (!energy || !attention) {
-      alert('Please select both energy level and attention quality')
-      return
-    }
-
     // Simple client-side rate limiting
     const lastSubmit = localStorage.getItem('last-tea-submit')
     const now = Date.now()
@@ -128,17 +214,42 @@ export default function TEATracker() {
       imagePreview: imagePreview,
     }
 
-    // Save to logs
-    const updatedLogs = [newLog, ...logs]
-    setLogs(updatedLogs)
+    try {
+      if (isAuthenticated && user) {
+        // Save to Supabase for authenticated users
+        const supabase = createClient()
+        const { error } = await supabase
+          .from('tea_logs')
+          .insert({
+            user_id: user.id,
+            timestamp: newLog.timestamp,
+            energy: newLog.energy,
+            attention: newLog.attention,
+            note: newLog.note,
+            image_url: newLog.imagePreview
+          })
 
-    // Save to localStorage if not authenticated
-    if (!isAuthenticated) {
-      localStorage.setItem('tea-logs', JSON.stringify(updatedLogs))
-    }
+        if (error) {
+          console.error('Error saving to Supabase:', error)
+          // Fallback to localStorage
+          const updatedLogs = [newLog, ...logs]
+          setLogs(updatedLogs)
+          localStorage.setItem('tea-logs', JSON.stringify(updatedLogs))
+        } else {
+          // Successfully saved to Supabase, add to local state
+          const updatedLogs = [newLog, ...logs]
+          setLogs(updatedLogs)
+        }
+      } else {
+        // Save to localStorage for non-authenticated users
+        const updatedLogs = [newLog, ...logs]
+        setLogs(updatedLogs)
+        localStorage.setItem('tea-logs', JSON.stringify(updatedLogs))
+      }
 
-    // Simulate API call
-    setTimeout(() => {
+      // Reset to first page when new entry is added
+      setCurrentPage(1)
+
       setIsSubmitting(false)
       setShowSuccess(true)
 
@@ -146,9 +257,9 @@ export default function TEATracker() {
       const randomCelebration = celebrations[Math.floor(Math.random() * celebrations.length)]
       setCelebration(randomCelebration)
 
-      // Reset form
-      setEnergy(0)
-      setAttention('')
+      // Reset form (but keep defaults)
+      setEnergy(3)
+      setAttention('focused')
       setNote('')
       setNoteLength(0)
       setImage(null)
@@ -159,7 +270,22 @@ export default function TEATracker() {
         setShowSuccess(false)
         setCelebration(null)
       }, 3000)
-    }, 500)
+    } catch (error) {
+      console.error('Error in handleSubmit:', error)
+      setIsSubmitting(false)
+      alert('Error saving entry. Please try again.')
+    }
+  }
+
+  const handleLogout = async () => {
+    const supabase = createClient()
+    await supabase.auth.signOut()
+    setShowMenu(false)
+    router.push('/')
+  }
+
+  const handleSignUpClick = () => {
+    router.push('/auth/sign-up')
   }
 
   const formatTimestamp = (timestamp: string) => {
@@ -168,19 +294,16 @@ export default function TEATracker() {
     const isToday = date.toDateString() === today.toDateString()
 
     if (isToday) {
-      return `Today at ${date.toLocaleTimeString('en-US', {
+      return date.toLocaleTimeString('en-US', {
         hour: 'numeric',
         minute: '2-digit',
         hour12: true
-      })}`
+      })
     }
 
-    return date.toLocaleString('en-US', {
+    return date.toLocaleDateString('en-US', {
       month: 'short',
-      day: 'numeric',
-      hour: 'numeric',
-      minute: '2-digit',
-      hour12: true
+      day: 'numeric'
     })
   }
 
@@ -189,24 +312,38 @@ export default function TEATracker() {
       <div className="max-w-2xl mx-auto space-y-6">
         {/* Main Tracker Card */}
         <div className="w-full bg-white rounded-2xl shadow-lg p-4 sm:p-6 space-y-4 sm:space-y-6 relative">
-          {/* Header and Auth in a flex container */}
-          <div className="flex flex-col sm:flex-row sm:justify-between items-start gap-3 sm:gap-0 mb-6">
-            {/* Header */}
-            <div>
-              <h1 className="text-xl sm:text-2xl font-bold text-gray-800 flex items-center gap-2">
-                <Brain className="w-5 sm:w-6 h-5 sm:h-6 text-indigo-600" />
-                Minimal T.E.A.
-              </h1>
-              <p className="text-xs sm:text-sm text-gray-500 mt-1">
-                Simply track <span className="font-semibold">T</span>ime, <span className="font-semibold">E</span>nergy and <span className="font-semibold">A</span>ttention patterns
-              </p>
-            </div>
-
-            {/* Auth Buttons */}
-            <div className="flex gap-2 self-end sm:self-start">
-              {/* AUTH */}
-            </div>
+          {/* Header */}
+          <div>
+            <h1 className="text-xl sm:text-2xl font-bold text-gray-800">
+              Track
+            </h1>
+            <p className="text-xs sm:text-sm text-gray-500 mt-1">
+              Time · Energy · Attention
+            </p>
           </div>
+
+          {/* Three dots menu for logged in users */}
+          {isAuthenticated && (
+            <div className="absolute top-4 right-4">
+              <button
+                onClick={() => setShowMenu(!showMenu)}
+                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <MoreVertical className="w-5 h-5 text-gray-600" />
+              </button>
+              {showMenu && (
+                <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-1">
+                  <button
+                    onClick={handleLogout}
+                    className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
+                  >
+                    <LogOut className="w-4 h-4" />
+                    Log Out
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Energy Level */}
           <div className="space-y-2">
@@ -238,11 +375,7 @@ export default function TEATracker() {
               Attention Quality
             </label>
             <div className="grid grid-cols-3 gap-2">
-              {[
-                { value: 'scattered', label: 'Scattered', emoji: '🌪️' },
-                { value: 'focused', label: 'Focused', emoji: '💡' },
-                { value: 'hyperfocus', label: 'Hyperfocus', emoji: '🎯' }
-              ].map((option) => (
+              {attentionStates.map((option) => (
                 <button
                   key={option.value}
                   onClick={() => setAttention(option.value)}
@@ -258,22 +391,22 @@ export default function TEATracker() {
             </div>
           </div>
 
-          {/* Optional Note */}
+          {/* Optional Context */}
           <div className="space-y-2">
             <label className="flex items-center justify-between text-xs sm:text-sm font-medium text-gray-700">
-              <span>Text & Visual Context <em>(Optional)</em></span>
-              <span className="text-xs text-gray-400">{noteLength}/{MAX_NOTE_LENGTH}</span>
+              <span>Context (optional)</span>
+              <span className="text-[10px] text-gray-400">{noteLength}/{MAX_NOTE_LENGTH}</span>
             </label>
             <input
               type="text"
               value={note}
               onChange={handleNoteChange}
-              placeholder="What are you working on?"
+              placeholder="What were you just doing?"
               className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent bg-white text-gray-900 dark:bg-white dark:text-gray-900"
             />
           </div>
 
-          {/* Image Upload */}
+          {/* Image Upload - Minimal */}
           <div className="space-y-2">
             <div className="relative">
               <input
@@ -285,7 +418,7 @@ export default function TEATracker() {
               />
               <label
                 htmlFor="image-upload"
-                className="flex items-center justify-center gap-2 w-full px-3 py-2 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-gray-400 transition-colors"
+                className="flex items-center justify-center gap-2 w-full px-3 py-2 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-gray-400 transition-colors group"
               >
                 {imagePreview ? (
                   <div className="relative w-full">
@@ -297,27 +430,26 @@ export default function TEATracker() {
                         className="object-cover rounded"
                       />
                       <div className="absolute inset-0 bg-black bg-opacity-40 flex items-center justify-center rounded">
-                        <Camera className="w-5 sm:w-6 h-5 sm:h-6 text-white" />
+                        <span className="text-white text-sm">Tap to change</span>
                       </div>
                     </div>
                   </div>
                 ) : (
-                  <>
-                    <Upload className="w-4 sm:w-5 h-4 sm:h-5 text-gray-400" />
-                    <span className="text-xs sm:text-sm text-gray-600">Upload screenshot (max 5MB)</span>
-                  </>
+                  <div className="flex flex-col items-center">
+                    <Upload className="w-5 sm:w-6 h-5 sm:h-6 text-gray-400" />
+                    <span className="text-[10px] text-gray-400 mt-1 group-hover:text-gray-600">Screenshot (optional)</span>
+                  </div>
                 )}
               </label>
             </div>
           </div>
 
-          {/* Submit Button */}
+          {/* Submit Button - Always enabled */}
           <button
             onClick={handleSubmit}
-            disabled={isSubmitting || !energy || !attention}
-            className={`w-full py-2.5 sm:py-3 px-4 rounded-lg font-medium transition-all flex items-center justify-center gap-2 text-sm sm:text-base ${!energy || !attention
-              ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
-              : isSubmitting
+            disabled={isSubmitting}
+            className={`w-full py-2.5 sm:py-3 px-4 rounded-lg font-medium transition-all flex items-center justify-center gap-2 text-sm sm:text-base ${
+              isSubmitting
                 ? 'bg-indigo-400 text-white'
                 : 'bg-indigo-600 text-white hover:bg-indigo-700 transform hover:scale-105'
               }`}
@@ -327,15 +459,10 @@ export default function TEATracker() {
             ) : (
               <>
                 <CheckCircle className="w-4 sm:w-5 h-4 sm:h-5" />
-                Log Entry
+                Track TEA
               </>
             )}
           </button>
-
-          {/* Timestamp - move to bottom and make smaller on mobile */}
-          <div className="text-center text-[10px] sm:text-xs text-gray-400 mt-4">
-            {formatTimestamp(new Date().toISOString())}
-          </div>
 
           {/* Celebration Animation */}
           {celebration && (
@@ -470,35 +597,36 @@ export default function TEATracker() {
           )}
         </div>
 
-        {/* Recent Logs */}
+        {/* Recent Logs - New Layout */}
         {logs.length > 0 && (
           <div className="space-y-4">
-            <h2 className="text-base sm:text-lg font-semibold text-gray-800">Recent Logs</h2>
-            <div className="space-y-3">
-              {logs.slice(0, 20).map((log) => {
+            <h2 className="text-base sm:text-lg font-semibold text-gray-800">TEA Tracks</h2>
+            <div className="space-y-2">
+              {currentLogs.map((log) => {
                 const logEnergy = energyLevels.find(l => l.value === log.energy)
+                const logAttention = attentionStates.find(a => a.value === log.attention)
                 return (
-                  <div key={log.id} className="bg-white rounded-lg shadow p-3 sm:p-4 space-y-2">
-                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                      <span className="text-xs sm:text-sm text-gray-500">{formatTimestamp(log.timestamp)}</span>
-                      <div className="flex flex-wrap items-center gap-2 sm:gap-4">
-                        <span className="flex items-center gap-1">
-                          <span className="text-xs sm:text-sm text-gray-600">Energy:</span>
-                          <span className="text-xs sm:text-sm font-medium" style={{ color: logEnergy?.color || '#000' }}>
-                            {log.energyLabel}
-                          </span>
-                        </span>
-                        <span className="flex items-center gap-1">
-                          <span className="text-xs sm:text-sm text-gray-600">Attention:</span>
-                          <span className="text-xs sm:text-sm font-medium capitalize">{log.attention}</span>
-                        </span>
+                  <div key={log.id} className="bg-white rounded-lg shadow-sm p-3 flex gap-3 min-h-[100px]">
+                    {/* Left side - Text content stacked vertically */}
+                    <div className="flex-1 space-y-1">
+                      <span className="text-[10px] text-gray-400">{formatTimestamp(log.timestamp)}</span>
+                      <div className="text-sm">
+                        <span>{logEnergy?.icon} {logEnergy?.label}</span>
                       </div>
+                      <div className="text-sm">
+                        <span>{logAttention?.emoji} {logAttention?.label}</span>
+                      </div>
+                      {log.note && (
+                        <p className="text-xs text-gray-600">{log.note}</p>
+                      )}
                     </div>
-                    {log.note && (
-                      <p className="text-xs sm:text-sm text-gray-700">{log.note}</p>
-                    )}
+                    
+                    {/* Right side - Image if exists */}
                     {log.imagePreview && (
-                      <div className="relative w-full h-24 sm:h-32">
+                      <div 
+                        className="w-16 h-16 relative rounded cursor-pointer hover:opacity-90 transition-opacity"
+                        onClick={() => setExpandedImage(log.imagePreview)}
+                      >
                         <Image
                           src={log.imagePreview}
                           alt="Log screenshot"
@@ -511,14 +639,94 @@ export default function TEATracker() {
                 )
               })}
             </div>
-            {!isAuthenticated && logs.length > 0 && (
-              <div className="text-center py-4">
-                <p className="text-xs sm:text-sm text-gray-600 mb-2">Sign up to save your logs permanently. <i>And unlock analytics (soon<sup>TM</sup>)</i></p>
-                <button className="px-4 py-2.5 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-lg hover:from-indigo-700 hover:to-purple-700 shadow-md hover:shadow-lg transform hover:scale-105 transition-all font-medium">
-                  Sign Up to Save History
-                </button>
+            
+            {/* Pagination Controls - Only for authenticated users */}
+            {showPagination && (
+              <div className="flex items-center justify-between py-4">
+                <div className="text-xs text-gray-500">
+                  Showing {startIndex + 1}-{Math.min(endIndex, logs.length)} of {logs.length} tracks
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={goToPrevPage}
+                    disabled={currentPage === 1}
+                    className={`flex items-center gap-1 px-3 py-2 text-sm rounded-lg transition-colors ${
+                      currentPage === 1
+                        ? 'text-gray-400 cursor-not-allowed'
+                        : 'text-gray-700 hover:bg-gray-100'
+                    }`}
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                    Previous
+                  </button>
+                  <span className="text-sm text-gray-600">
+                    Page {currentPage} of {totalPages}
+                  </span>
+                  <button
+                    onClick={goToNextPage}
+                    disabled={currentPage === totalPages}
+                    className={`flex items-center gap-1 px-3 py-2 text-sm rounded-lg transition-colors ${
+                      currentPage === totalPages
+                        ? 'text-gray-400 cursor-not-allowed'
+                        : 'text-gray-700 hover:bg-gray-100'
+                    }`}
+                  >
+                    Next
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
             )}
+
+            {/* Auth CTA - Only for non-authenticated users */}
+            {!isAuthenticated && logs.length > 0 && (
+              <div className="text-center py-4">
+                <p className="text-xs sm:text-sm text-gray-600 mb-3">
+                  {logs.length > ITEMS_PER_PAGE 
+                    ? `Sign up to view all ${logs.length} tracks and unlock full history browsing`
+                    : "Sign up to save your logs permanently and unlock analytics (soon™)"
+                  }
+                </p>
+                <div className="flex gap-2 justify-center">
+                  <button 
+                    onClick={handleSignUpClick}
+                    className="px-4 py-2.5 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-lg hover:from-indigo-700 hover:to-purple-700 shadow-md hover:shadow-lg transform hover:scale-105 transition-all font-medium"
+                  >
+                    Sign Up
+                  </button>
+                  <button 
+                    onClick={() => router.push('/auth/login')}
+                    className="px-4 py-2.5 bg-white text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 shadow-md hover:shadow-lg transform hover:scale-105 transition-all font-medium"
+                  >
+                    Log In
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Expanded Image Modal */}
+        {expandedImage && (
+          <div 
+            className="fixed inset-0 bg-black bg-opacity-80 z-50 flex items-center justify-center p-4"
+            onClick={() => setExpandedImage(null)}
+          >
+            <div className="relative max-w-4xl max-h-full">
+              <Image
+                src={expandedImage}
+                alt="Expanded screenshot"
+                width={800}
+                height={600}
+                className="object-contain"
+              />
+              <button
+                onClick={() => setExpandedImage(null)}
+                className="absolute top-4 right-4 text-white bg-black bg-opacity-50 rounded-full p-2"
+              >
+                ✕
+              </button>
+            </div>
           </div>
         )}
       </div>
