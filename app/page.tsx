@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Zap, Target, Upload, CheckCircle, MoreVertical, LogOut, ChevronLeft, ChevronRight, ChevronDown, ChevronUp } from 'lucide-react'
+import { Zap, Target, Upload, CheckCircle, MoreVertical, LogOut, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Edit3, Check, X } from 'lucide-react'
 
 // Type definitions
 interface LogEntry {
@@ -55,6 +55,8 @@ export default function TEATracker() {
     streakStartDate: null
   })
   const [isSimplifiedMode, setIsSimplifiedMode] = useState(false)
+  const [editingTimestamp, setEditingTimestamp] = useState<string | null>(null)
+  const [editTimestampValue, setEditTimestampValue] = useState('')
 
   const MAX_NOTE_LENGTH = 100
   const MAX_FILE_SIZE = 5 * 1024 * 1024 // 5MB
@@ -371,10 +373,58 @@ export default function TEATracker() {
     localStorage.setItem('tea-authenticated', 'true')
   }
 
+  // Timestamp editing handlers
+  const startEditingTimestamp = (logId: string, currentTimestamp: string) => {
+    setEditingTimestamp(logId)
+    // Format for datetime-local input
+    const date = new Date(currentTimestamp)
+    const localDateTime = new Date(date.getTime() - date.getTimezoneOffset() * 60000)
+      .toISOString()
+      .slice(0, 16)
+    setEditTimestampValue(localDateTime)
+  }
+
+  const saveTimestampEdit = (logId: string) => {
+    if (!editTimestampValue) return
+
+    // Prevent future timestamps
+    const newTimestamp = new Date(editTimestampValue)
+    const now = new Date()
+    if (newTimestamp > now) {
+      alert('Cannot set a future timestamp')
+      return
+    }
+
+    const updatedLogs = logs.map(log => 
+      log.id === logId 
+        ? { ...log, timestamp: newTimestamp.toISOString() }
+        : log
+    )
+    
+    setLogs(updatedLogs)
+    localStorage.setItem('tea-logs', JSON.stringify(updatedLogs))
+    
+    // Recalculate streaks after timestamp change
+    const updatedStreaks = calculateStreakFromLogs(updatedLogs)
+    setStreakData(updatedStreaks)
+    
+    setEditingTimestamp(null)
+    setEditTimestampValue('')
+  }
+
+  const cancelTimestampEdit = () => {
+    setEditingTimestamp(null)
+    setEditTimestampValue('')
+  }
+
   const formatTimestamp = (timestamp: string) => {
     const date = new Date(timestamp)
     const today = new Date()
+    const yesterday = new Date(today)
+    yesterday.setDate(yesterday.getDate() - 1)
+    
     const isToday = date.toDateString() === today.toDateString()
+    const isYesterday = date.toDateString() === yesterday.toDateString()
 
     if (isToday) {
       return date.toLocaleTimeString('en-US', {
@@ -384,9 +434,23 @@ export default function TEATracker() {
       })
     }
 
+    if (isYesterday) {
+      return 'Yesterday'
+    }
+
     return date.toLocaleDateString('en-US', {
       month: 'short',
       day: 'numeric'
+    })
+  }
+
+  const formatFullDate = (timestamp: string) => {
+    const date = new Date(timestamp)
+    return date.toLocaleDateString('en-US', {
+      weekday: 'short',
+      month: 'short',
+      day: 'numeric',
+      year: date.getFullYear() !== new Date().getFullYear() ? 'numeric' : undefined
     })
   }
 
@@ -790,47 +854,114 @@ export default function TEATracker() {
           )}
         </div>
 
-        {/* Recent Logs - New Layout */}
+        {/* Recent Logs - Improved ADHD-Friendly Layout */}
         {logs.length > 0 && (
           <div className="space-y-4">
             <h2 className="text-base sm:text-lg font-semibold text-gray-800">History</h2>
-            <div className="space-y-2">
+            <div className="space-y-3">
               {currentLogs.map((log) => {
                 const logEnergy = energyLevels.find(l => l.value === log.energy)
                 const logAttention = attentionStates.find(a => a.value === log.attention)
+                const isEditing = editingTimestamp === log.id
+                
                 return (
-                  <div key={log.id} className="bg-white rounded-lg shadow-sm p-3 flex gap-3">
-                    {/* Left side - Text content */}
-                    <div className="flex-1">
-                      <div className="flex justify-between items-start">
-                        <div className="space-y-1">
-                          <div className="text-sm">
-                            {logEnergy?.icon} {logEnergy?.label}
-                          </div>
-                          <div className="text-sm">
-                            {logAttention?.emoji} {logAttention?.label}
-                          </div>
-                          {log.note && (
-                            <p className="text-xs text-gray-600">{log.note}</p>
+                  <div key={log.id} className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+                    {/* Date Header - Prominent and Clear */}
+                    <div className="bg-gray-50 px-4 py-2 border-b border-gray-100">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-medium text-gray-700">
+                            {formatFullDate(log.timestamp)}
+                          </span>
+                          {isEditing ? (
+                            <div className="flex items-center gap-2">
+                              <input
+                                type="datetime-local"
+                                value={editTimestampValue}
+                                onChange={(e) => setEditTimestampValue(e.target.value)}
+                                className="text-xs border border-gray-300 rounded px-2 py-1 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                              />
+                              <button
+                                onClick={() => saveTimestampEdit(log.id)}
+                                className="p-1 text-green-600 hover:bg-green-50 rounded transition-colors"
+                              >
+                                <Check className="w-3 h-3" />
+                              </button>
+                              <button
+                                onClick={cancelTimestampEdit}
+                                className="p-1 text-red-600 hover:bg-red-50 rounded transition-colors"
+                              >
+                                <X className="w-3 h-3" />
+                              </button>
+                            </div>
+                          ) : (
+                            <button
+                              onClick={() => startEditingTimestamp(log.id, log.timestamp)}
+                              className="p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded transition-colors"
+                            >
+                              <Edit3 className="w-3 h-3" />
+                            </button>
                           )}
                         </div>
-                        <span className="text-[10px] text-gray-400">{formatTimestamp(log.timestamp)}</span>
+                        <span className="text-xs text-gray-500">
+                          {formatTimestamp(log.timestamp)}
+                        </span>
                       </div>
                     </div>
-                    
-                    {/* Right side - Image if exists */}
-                    {log.imagePreview && (
-                      <div 
-                        className="w-16 h-16 relative rounded cursor-pointer hover:opacity-90 transition-opacity"
-                        onClick={() => setExpandedImage(log.imagePreview)}
-                      >
-                        <img
-                          src={log.imagePreview}
-                          alt="Log screenshot"
-                          className="w-full h-full object-cover rounded"
-                        />
+
+                    {/* Content Area */}
+                    <div className="p-4">
+                      <div className="flex gap-4">
+                        {/* Main Content */}
+                        <div className="flex-1 space-y-3">
+                          {/* Energy & Attention - Large and Clear */}
+                          <div className="grid grid-cols-2 gap-3">
+                            <div className="flex items-center gap-2 p-3 bg-orange-50 rounded-lg border border-orange-100">
+                              <span className="text-2xl">{logEnergy?.icon}</span>
+                              <div>
+                                <div className="text-xs text-orange-600 font-medium">Energy</div>
+                                <div className="text-sm font-semibold text-orange-800">{logEnergy?.label}</div>
+                              </div>
+                            </div>
+                            
+                            <div className="flex items-center gap-2 p-3 bg-blue-50 rounded-lg border border-blue-100">
+                              <span className="text-2xl">{logAttention?.emoji}</span>
+                              <div>
+                                <div className="text-xs text-blue-600 font-medium">Attention</div>
+                                <div className="text-sm font-semibold text-blue-800">{logAttention?.label}</div>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Note - If Present */}
+                          {log.note && (
+                            <div className="p-3 bg-gray-50 rounded-lg border border-gray-100">
+                              <div className="text-xs text-gray-600 font-medium mb-1">Context</div>
+                              <p className="text-sm text-gray-800">{log.note}</p>
+                            </div>
+                          )}
+                        </div>
+                        
+                        {/* Image - If Present */}
+                        {log.imagePreview && (
+                          <div className="flex-shrink-0">
+                            <div 
+                              className="w-20 h-20 relative rounded-lg cursor-pointer hover:opacity-90 transition-opacity border border-gray-200 overflow-hidden"
+                              onClick={() => setExpandedImage(log.imagePreview)}
+                            >
+                              <img
+                                src={log.imagePreview}
+                                alt="Log screenshot"
+                                className="w-full h-full object-cover"
+                              />
+                              <div className="absolute inset-0 bg-black bg-opacity-0 hover:bg-opacity-10 transition-all flex items-center justify-center">
+                                <span className="text-white text-xs opacity-0 hover:opacity-100 transition-opacity">View</span>
+                              </div>
+                            </div>
+                          </div>
+                        )}
                       </div>
-                    )}
+                    </div>
                   </div>
                 )
               })}
