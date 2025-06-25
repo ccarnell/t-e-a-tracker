@@ -230,61 +230,73 @@ export default function TEATracker() {
         {/* Main Tracker Card */}
         <div className="w-full bg-white rounded-2xl shadow-lg p-4 sm:p-6 space-y-4 sm:space-y-6">
           {/* Header */}
-          <div className="flex justify-between items-baseline">
-            {/* Left side - Track title and subtitle */}
-            <div>
-              <h1 className="text-xl sm:text-2xl font-bold text-gray-800">
-                Track
-              </h1>
-              <p className="text-xs sm:text-sm text-gray-500 mt-1">
-                Time · Energy · Attention
-              </p>
-            </div>
-
-            {/* Right side - Auth section */}
-            {isAuthenticated ? (
-              <div className="relative">
-                <button
-                  onClick={() => setShowMenu(!showMenu)}
-                  className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-                >
-                  <MoreVertical className="w-5 h-5 text-gray-600" />
-                </button>
-                {showMenu && (
-                  <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-10">
-                    <button
-                      onClick={handleLogout}
-                      className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
-                    >
-                      <LogOut className="w-4 h-4" />
-                      Log Out
-                    </button>
-                  </div>
-                )}
+          <div className="space-y-2">
+            {/* Row 1: Action Bar - Track, Log In, Sign Up with identical heights */}
+            <div className="flex justify-between items-center">
+              {/* Left side - Track title only */}
+              <div className="flex items-center h-10">
+                <h1 className="text-xl sm:text-2xl font-bold text-gray-800">
+                  Track
+                </h1>
               </div>
-            ) : (
-              <div className="flex items-baseline">
-                <button 
-                  onClick={handleLogin}
-                  className="text-xs sm:text-sm text-gray-500 hover:text-gray-700 transition-colors font-medium mr-2"
-                >
-                  Log In
-                </button>
-                <div className="text-right">
+
+              {/* Right side - Auth section */}
+              {isAuthenticated ? (
+                <div className="relative flex items-center h-10">
+                  <button
+                    onClick={() => setShowMenu(!showMenu)}
+                    className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                  >
+                    <MoreVertical className="w-5 h-5 text-gray-600" />
+                  </button>
+                  {showMenu && (
+                    <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-10">
+                      <button
+                        onClick={handleLogout}
+                        className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
+                      >
+                        <LogOut className="w-4 h-4" />
+                        Log Out
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="flex items-center gap-3 h-10">
+                  <button 
+                    onClick={handleLogin}
+                    className="text-xs sm:text-sm text-gray-500 hover:text-gray-700 transition-colors font-medium px-2 py-2"
+                  >
+                    Log In
+                  </button>
                   <button 
                     onClick={handleSignUp}
-                    className="px-4 sm:px-6 py-1.5 sm:py-2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-lg hover:from-indigo-700 hover:to-purple-700 shadow-md hover:shadow-lg transform hover:scale-105 transition-all font-medium text-xs sm:text-sm whitespace-nowrap"
+                    className="px-4 sm:px-6 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-lg hover:from-indigo-700 hover:to-purple-700 shadow-md hover:shadow-lg transform hover:scale-105 transition-all font-medium text-xs sm:text-sm whitespace-nowrap"
                   >
                     Sign Up
                   </button>
-                  <div className="mt-1">
-                    <p className="text-[10px] text-gray-500 leading-tight">
-                      Sign up to save your logs
-                    </p>
-                    <p className="text-[10px] text-gray-500 leading-tight">
-                      permanently and unlock analytics (soon™)
-                    </p>
-                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Row 2: Descriptive Text - Balanced visual weight */}
+            {!isAuthenticated && (
+              <div className="flex justify-between items-start">
+                {/* Left side - Subtitle with increased line height for visual balance */}
+                <div className="flex-1">
+                  <p className="text-xs sm:text-sm text-gray-500 leading-relaxed">
+                    Time · Energy · Attention
+                  </p>
+                </div>
+
+                {/* Right side - Sign up description aligned under Sign Up button */}
+                <div className="text-right ml-4" style={{ width: '140px' }}>
+                  <p className="text-[10px] text-gray-500 leading-tight">
+                    Sign up to save your logs
+                  </p>
+                  <p className="text-[10px] text-gray-500 leading-tight">
+                    unlock analytics (soon™)
+                  </p>
                 </div>
               </div>
             )}
