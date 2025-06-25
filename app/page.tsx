@@ -252,17 +252,83 @@ export default function TEATracker() {
     { value: 'hyperfocused', label: 'Hyperfocused', emoji: '🎯' }
   ]
 
-  // Celebration animations
-  const celebrations: Celebration[] = [
-    { emoji: '🦄', message: 'Magical tracking!' },
-    { emoji: '🌟', message: 'You\'re a star!' },
-    { emoji: '🎉', message: 'Way to go!' },
-    { emoji: '🌈', message: 'Rainbow power!' },
-    { emoji: '⚡', message: 'Lightning tracker!' },
-    { emoji: '🔥', message: 'On fire!' },
-    { emoji: '💫', message: 'Stellar job!' },
-    { emoji: '🏆', message: 'Champion logger!' }
-  ]
+  // Enhanced celebration system with variety and context
+  const getCelebration = (): Celebration => {
+    const basicCelebrations: Celebration[] = [
+      { emoji: '🦄', message: 'Magical tracking!' },
+      { emoji: '🌟', message: 'You\'re a star!' },
+      { emoji: '🎉', message: 'Way to go!' },
+      { emoji: '🌈', message: 'Rainbow power!' },
+      { emoji: '⚡', message: 'Lightning tracker!' },
+      { emoji: '🔥', message: 'On fire!' },
+      { emoji: '💫', message: 'Stellar job!' },
+      { emoji: '🏆', message: 'Champion logger!' },
+      { emoji: '✨', message: 'Sparkling progress!' },
+      { emoji: '🎯', message: 'Right on target!' },
+      { emoji: '🚀', message: 'Blast off!' },
+      { emoji: '💎', message: 'Precious moment!' },
+      { emoji: '🌺', message: 'Blooming beautifully!' },
+      { emoji: '🎪', message: 'Amazing show!' },
+      { emoji: '🎨', message: 'Masterpiece!' }
+    ]
+
+    const streakCelebrations: Celebration[] = [
+      { emoji: '🔥', message: 'Streak master!' },
+      { emoji: '💪', message: 'Consistency champion!' },
+      { emoji: '🎯', message: 'Bullseye habits!' },
+      { emoji: '⭐', message: 'Stellar streak!' },
+      { emoji: '🏅', message: 'Dedication medal!' },
+      { emoji: '🌟', message: 'Shining bright!' },
+      { emoji: '💫', message: 'Cosmic consistency!' },
+      { emoji: '🎊', message: 'Celebration time!' }
+    ]
+
+    const energyCelebrations: Celebration[] = [
+      { emoji: '⚡', message: 'Electric energy!' },
+      { emoji: '🌞', message: 'Sunshine vibes!' },
+      { emoji: '🔋', message: 'Fully charged!' },
+      { emoji: '✨', message: 'Sparkling spirit!' },
+      { emoji: '🌈', message: 'Colorful energy!' },
+      { emoji: '🎈', message: 'Floating high!' },
+      { emoji: '🦋', message: 'Light as air!' },
+      { emoji: '🌸', message: 'Fresh energy!' }
+    ]
+
+    const focusCelebrations: Celebration[] = [
+      { emoji: '🎯', message: 'Laser focused!' },
+      { emoji: '🔍', message: 'Sharp attention!' },
+      { emoji: '💡', message: 'Bright mind!' },
+      { emoji: '🧠', message: 'Brain power!' },
+      { emoji: '🎪', message: 'Center stage!' },
+      { emoji: '🎨', message: 'Creative focus!' },
+      { emoji: '🔬', message: 'Scientific precision!' },
+      { emoji: '🎵', message: 'In the zone!' }
+    ]
+
+    const encouragingCelebrations: Celebration[] = [
+      { emoji: '🤗', message: 'You did it!' },
+      { emoji: '👏', message: 'Well done!' },
+      { emoji: '🙌', message: 'Fantastic!' },
+      { emoji: '💝', message: 'Gift to yourself!' },
+      { emoji: '🌻', message: 'Growing strong!' },
+      { emoji: '🦄', message: 'Uniquely you!' },
+      { emoji: '🎁', message: 'Present moment!' },
+      { emoji: '💖', message: 'Self-care win!' }
+    ]
+
+    // Choose celebration type based on context
+    if (streakData.dayCount >= 7) {
+      return streakCelebrations[Math.floor(Math.random() * streakCelebrations.length)]
+    } else if (energy >= 4) {
+      return energyCelebrations[Math.floor(Math.random() * energyCelebrations.length)]
+    } else if (attention === 'hyperfocused') {
+      return focusCelebrations[Math.floor(Math.random() * focusCelebrations.length)]
+    } else if (Math.random() < 0.3) {
+      return encouragingCelebrations[Math.floor(Math.random() * encouragingCelebrations.length)]
+    } else {
+      return basicCelebrations[Math.floor(Math.random() * basicCelebrations.length)]
+    }
+  }
 
   const handleNoteChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const text = e.target.value
@@ -336,9 +402,9 @@ export default function TEATracker() {
       setIsSubmitting(false)
       setShowSuccess(true)
 
-      // Show random celebration
-      const randomCelebration = celebrations[Math.floor(Math.random() * celebrations.length)]
-      setCelebration(randomCelebration)
+      // Show contextual celebration
+      const contextualCelebration = getCelebration()
+      setCelebration(contextualCelebration)
 
       // Reset form (but keep defaults)
       setEnergy(3)
@@ -854,7 +920,7 @@ export default function TEATracker() {
           )}
         </div>
 
-        {/* Recent Logs - Improved ADHD-Friendly Layout */}
+        {/* Recent Logs - Clean ADHD-Friendly Layout */}
         {logs.length > 0 && (
           <div className="space-y-4">
             <h2 className="text-base sm:text-lg font-semibold text-gray-800">History</h2>
@@ -865,103 +931,87 @@ export default function TEATracker() {
                 const isEditing = editingTimestamp === log.id
                 
                 return (
-                  <div key={log.id} className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-                    {/* Date Header - Prominent and Clear */}
-                    <div className="bg-gray-50 px-4 py-2 border-b border-gray-100">
-                      <div className="flex items-center justify-between">
+                  <div key={log.id} className="bg-white rounded-lg shadow-sm border border-gray-100 p-4">
+                    {/* Date Header - Clean and Consistent */}
+                    <div className="flex items-center gap-2 mb-3 pb-2 border-b border-gray-100">
+                      <span className="text-sm font-medium text-gray-700">
+                        {formatFullDate(log.timestamp)} • {formatTimestamp(log.timestamp)}
+                      </span>
+                      {isEditing ? (
                         <div className="flex items-center gap-2">
-                          <span className="text-sm font-medium text-gray-700">
-                            {formatFullDate(log.timestamp)}
-                          </span>
-                          {isEditing ? (
-                            <div className="flex items-center gap-2">
-                              <input
-                                type="datetime-local"
-                                value={editTimestampValue}
-                                onChange={(e) => setEditTimestampValue(e.target.value)}
-                                className="text-xs border border-gray-300 rounded px-2 py-1 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                              />
-                              <button
-                                onClick={() => saveTimestampEdit(log.id)}
-                                className="p-1 text-green-600 hover:bg-green-50 rounded transition-colors"
-                              >
-                                <Check className="w-3 h-3" />
-                              </button>
-                              <button
-                                onClick={cancelTimestampEdit}
-                                className="p-1 text-red-600 hover:bg-red-50 rounded transition-colors"
-                              >
-                                <X className="w-3 h-3" />
-                              </button>
-                            </div>
-                          ) : (
-                            <button
-                              onClick={() => startEditingTimestamp(log.id, log.timestamp)}
-                              className="p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded transition-colors"
-                            >
-                              <Edit3 className="w-3 h-3" />
-                            </button>
-                          )}
+                          <input
+                            type="datetime-local"
+                            value={editTimestampValue}
+                            onChange={(e) => setEditTimestampValue(e.target.value)}
+                            className="text-xs border border-gray-300 rounded px-2 py-1 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                          />
+                          <button
+                            onClick={() => saveTimestampEdit(log.id)}
+                            className="p-1 text-green-600 hover:bg-green-50 rounded transition-colors"
+                          >
+                            <Check className="w-3 h-3" />
+                          </button>
+                          <button
+                            onClick={cancelTimestampEdit}
+                            className="p-1 text-red-600 hover:bg-red-50 rounded transition-colors"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
                         </div>
-                        <span className="text-xs text-gray-500">
-                          {formatTimestamp(log.timestamp)}
-                        </span>
-                      </div>
+                      ) : (
+                        <button
+                          onClick={() => startEditingTimestamp(log.id, log.timestamp)}
+                          className="p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded transition-colors"
+                        >
+                          <Edit3 className="w-3 h-3" />
+                        </button>
+                      )}
                     </div>
 
-                    {/* Content Area */}
-                    <div className="p-4">
-                      <div className="flex gap-4">
-                        {/* Main Content */}
-                        <div className="flex-1 space-y-3">
-                          {/* Energy & Attention - Large and Clear */}
-                          <div className="grid grid-cols-2 gap-3">
-                            <div className="flex items-center gap-2 p-3 bg-orange-50 rounded-lg border border-orange-100">
-                              <span className="text-2xl">{logEnergy?.icon}</span>
-                              <div>
-                                <div className="text-xs text-orange-600 font-medium">Energy</div>
-                                <div className="text-sm font-semibold text-orange-800">{logEnergy?.label}</div>
-                              </div>
-                            </div>
-                            
-                            <div className="flex items-center gap-2 p-3 bg-blue-50 rounded-lg border border-blue-100">
-                              <span className="text-2xl">{logAttention?.emoji}</span>
-                              <div>
-                                <div className="text-xs text-blue-600 font-medium">Attention</div>
-                                <div className="text-sm font-semibold text-blue-800">{logAttention?.label}</div>
-                              </div>
-                            </div>
+                    {/* Content - Vertically Stacked for Better Alignment */}
+                    <div className="flex gap-4">
+                      {/* Main Content - Fixed Height for Consistency */}
+                      <div className="flex-1 min-h-[60px] flex items-center">
+                        <div className="space-y-2 w-full">
+                          {/* Energy */}
+                          <div className="flex items-center gap-3">
+                            <span className="text-xl w-6 text-center">{logEnergy?.icon}</span>
+                            <span className="text-sm font-medium text-gray-700">{logEnergy?.label}</span>
                           </div>
-
-                          {/* Note - If Present */}
-                          {log.note && (
-                            <div className="p-3 bg-gray-50 rounded-lg border border-gray-100">
-                              <div className="text-xs text-gray-600 font-medium mb-1">Context</div>
-                              <p className="text-sm text-gray-800">{log.note}</p>
-                            </div>
-                          )}
+                          
+                          {/* Attention */}
+                          <div className="flex items-center gap-3">
+                            <span className="text-xl w-6 text-center">{logAttention?.emoji}</span>
+                            <span className="text-sm font-medium text-gray-700">{logAttention?.label}</span>
+                          </div>
                         </div>
-                        
-                        {/* Image - If Present */}
-                        {log.imagePreview && (
-                          <div className="flex-shrink-0">
-                            <div 
-                              className="w-20 h-20 relative rounded-lg cursor-pointer hover:opacity-90 transition-opacity border border-gray-200 overflow-hidden"
-                              onClick={() => setExpandedImage(log.imagePreview)}
-                            >
-                              <img
-                                src={log.imagePreview}
-                                alt="Log screenshot"
-                                className="w-full h-full object-cover"
-                              />
-                              <div className="absolute inset-0 bg-black bg-opacity-0 hover:bg-opacity-10 transition-all flex items-center justify-center">
-                                <span className="text-white text-xs opacity-0 hover:opacity-100 transition-opacity">View</span>
-                              </div>
-                            </div>
+                      </div>
+                      
+                      {/* Image - Fixed Size for Consistency */}
+                      <div className="flex-shrink-0 w-16 h-16">
+                        {log.imagePreview ? (
+                          <div 
+                            className="w-full h-full relative rounded cursor-pointer hover:opacity-90 transition-opacity border border-gray-200 overflow-hidden"
+                            onClick={() => setExpandedImage(log.imagePreview)}
+                          >
+                            <img
+                              src={log.imagePreview}
+                              alt="Log screenshot"
+                              className="w-full h-full object-cover"
+                            />
                           </div>
+                        ) : (
+                          <div className="w-full h-full"></div>
                         )}
                       </div>
                     </div>
+
+                    {/* Note - Only if Present, Consistent Spacing */}
+                    {log.note && (
+                      <div className="mt-3 pt-2 border-t border-gray-100">
+                        <p className="text-sm text-gray-600 italic">{log.note}</p>
+                      </div>
+                    )}
                   </div>
                 )
               })}
