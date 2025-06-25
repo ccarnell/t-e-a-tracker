@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Zap, Target, Upload, CheckCircle, MoreVertical, LogOut, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Edit3, Check, X } from 'lucide-react'
+import { Upload, CheckCircle, MoreVertical, LogOut, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Edit3, Check, X } from 'lucide-react'
 
 // Type definitions
 interface LogEntry {
@@ -648,11 +648,9 @@ export default function TEATracker() {
 
           {/* Energy Level */}
           <div className="space-y-2">
-            <label className="flex items-center gap-2 text-xs sm:text-sm font-medium text-gray-700">
-              <Zap className="w-3 sm:w-4 h-3 sm:h-4" />
-              How's your energy? ✨
+            <label className="text-xs sm:text-sm font-medium text-gray-700">
+              How was your energy?
             </label>
-            <p className="text-[10px] text-gray-500 mb-1">All energy levels are perfectly valid</p>
             <div className="grid grid-cols-5 gap-0.5 sm:gap-2">
               {energyLevels.map((level) => (
                 <button
@@ -672,11 +670,9 @@ export default function TEATracker() {
 
           {/* Attention Quality */}
           <div className="space-y-2">
-            <label className="flex items-center gap-2 text-xs sm:text-sm font-medium text-gray-700">
-              <Target className="w-3 sm:w-4 h-3 sm:h-4" />
-              How&apos;s your focus? 🎯
+            <label className="text-xs sm:text-sm font-medium text-gray-700">
+              How was your attention?
             </label>
-            <p className="text-[10px] text-gray-500 mb-1">Every type of attention has value</p>
             <div className="grid grid-cols-3 gap-2">
               {attentionStates.map((option) => (
                 <button
@@ -723,11 +719,10 @@ export default function TEATracker() {
                   type="text"
                   value={note}
                   onChange={handleNoteChange}
-                  placeholder="What were you just doing? (optional - any context helps! 💭)"
+                  placeholder="What were you just doing?"
                   className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent bg-white text-gray-900"
                 />
-                <div className="flex justify-between items-center">
-                  <span className="text-[10px] text-gray-500">Every detail matters, but don&apos;t stress if you skip this</span>
+                <div className="flex justify-end">
                   <span className="text-[10px] text-gray-400">{note.length}/{MAX_NOTE_LENGTH}</span>
                 </div>
               </div>
@@ -771,29 +766,24 @@ export default function TEATracker() {
           )}
 
           {/* Submit Button - Always enabled */}
-          <div className="space-y-2">
-            <button
-              onClick={handleSubmit}
-              disabled={isSubmitting}
-              className={`w-full py-2.5 sm:py-3 px-4 rounded-lg font-medium transition-all flex items-center justify-center gap-2 text-sm sm:text-base ${
-                isSubmitting
-                  ? 'bg-indigo-400 text-white'
-                  : 'bg-indigo-600 text-white hover:bg-indigo-700 transform hover:scale-105'
-                }`}
-            >
-              {isSubmitting ? (
-                <>Saving your moment...</>
-              ) : (
-                <>
-                  <CheckCircle className="w-4 sm:w-5 h-4 sm:h-5" />
-                  Track this moment 🌟
-                </>
-              )}
-            </button>
-            <p className="text-center text-[10px] text-gray-500">
-              You&apos;re doing great by checking in with yourself! 💙
-            </p>
-          </div>
+          <button
+            onClick={handleSubmit}
+            disabled={isSubmitting}
+            className={`w-full py-2.5 sm:py-3 px-4 rounded-lg font-medium transition-all flex items-center justify-center gap-2 text-sm sm:text-base ${
+              isSubmitting
+                ? 'bg-indigo-400 text-white'
+                : 'bg-indigo-600 text-white hover:bg-indigo-700 transform hover:scale-105'
+              }`}
+          >
+            {isSubmitting ? (
+              <>Processing...</>
+            ) : (
+              <>
+                <CheckCircle className="w-4 sm:w-5 h-4 sm:h-5" />
+                Track it
+              </>
+            )}
+          </button>
 
           {/* Celebration Animation */}
           {celebration && (
