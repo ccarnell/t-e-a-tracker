@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Zap, Target, Upload, CheckCircle, MoreVertical, LogOut, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Zap, Target, Upload, CheckCircle, MoreVertical, LogOut, ChevronLeft, ChevronRight, ChevronDown, ChevronUp } from 'lucide-react'
 
 // Type definitions
 interface LogEntry {
@@ -54,6 +54,7 @@ export default function TEATracker() {
     lastLogDate: null,
     streakStartDate: null
   })
+  const [isSimplifiedMode, setIsSimplifiedMode] = useState(false)
 
   const MAX_NOTE_LENGTH = 100
   const MAX_FILE_SIZE = 5 * 1024 * 1024 // 5MB
@@ -227,7 +228,20 @@ export default function TEATracker() {
     if (authStatus === 'true') {
       setIsAuthenticated(true)
     }
+
+    // Load simplified mode preference
+    const simplifiedMode = localStorage.getItem('tea-simplified-mode')
+    if (simplifiedMode === 'true') {
+      setIsSimplifiedMode(true)
+    }
   }, [])
+
+  // Toggle simplified mode and save preference
+  const toggleSimplifiedMode = () => {
+    const newMode = !isSimplifiedMode
+    setIsSimplifiedMode(newMode)
+    localStorage.setItem('tea-simplified-mode', newMode.toString())
+  }
 
   // Attention states with consistent tense
   const attentionStates = [
@@ -548,55 +562,80 @@ export default function TEATracker() {
             </div>
           </div>
 
-          {/* Optional Context */}
-          <div className="space-y-1">
-            <input
-              type="text"
-              value={note}
-              onChange={handleNoteChange}
-              placeholder="What were you just doing?"
-              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent bg-white text-gray-900"
-            />
-            <div className="flex justify-end">
-              <span className="text-[10px] text-gray-400">{note.length}/{MAX_NOTE_LENGTH}</span>
-            </div>
+          {/* Simplified Mode Toggle */}
+          <div className="flex justify-center">
+            <button
+              onClick={toggleSimplifiedMode}
+              className="flex items-center gap-2 px-3 py-1 text-xs text-gray-500 hover:text-gray-700 transition-colors"
+            >
+              {isSimplifiedMode ? (
+                <>
+                  <ChevronDown className="w-3 h-3" />
+                  <span>Show details</span>
+                </>
+              ) : (
+                <>
+                  <ChevronUp className="w-3 h-3" />
+                  <span>Quick mode</span>
+                </>
+              )}
+            </button>
           </div>
 
-          {/* Image Upload - Minimal */}
-          <div className="space-y-2">
-            <div className="relative">
-              <input
-                type="file"
-                accept="image/jpeg,image/jpg,image/png,image/gif,image/webp"
-                onChange={handleImageChange}
-                className="hidden"
-                id="image-upload"
-              />
-              <label
-                htmlFor="image-upload"
-                className="flex items-center justify-center gap-2 w-full px-3 py-2 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-gray-400 transition-colors group"
-              >
-                {imagePreview ? (
-                  <div className="relative w-full">
-                    <div className="relative w-full h-24 sm:h-32">
-                      <img
-                        src={imagePreview}
-                        alt="Preview"
-                        className="w-full h-full object-cover rounded"
-                      />
-                      <div className="absolute inset-0 bg-black bg-opacity-40 flex items-center justify-center rounded">
-                        <span className="text-white text-sm">Tap to change</span>
+          {/* Collapsible Optional Sections */}
+          {!isSimplifiedMode && (
+            <div className="space-y-4 animate-in slide-in-from-top-2 duration-200">
+              {/* Optional Context */}
+              <div className="space-y-1">
+                <input
+                  type="text"
+                  value={note}
+                  onChange={handleNoteChange}
+                  placeholder="What were you just doing?"
+                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent bg-white text-gray-900"
+                />
+                <div className="flex justify-end">
+                  <span className="text-[10px] text-gray-400">{note.length}/{MAX_NOTE_LENGTH}</span>
+                </div>
+              </div>
+
+              {/* Image Upload - Minimal */}
+              <div className="space-y-2">
+                <div className="relative">
+                  <input
+                    type="file"
+                    accept="image/jpeg,image/jpg,image/png,image/gif,image/webp"
+                    onChange={handleImageChange}
+                    className="hidden"
+                    id="image-upload"
+                  />
+                  <label
+                    htmlFor="image-upload"
+                    className="flex items-center justify-center gap-2 w-full px-3 py-2 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-gray-400 transition-colors group"
+                  >
+                    {imagePreview ? (
+                      <div className="relative w-full">
+                        <div className="relative w-full h-24 sm:h-32">
+                          <img
+                            src={imagePreview}
+                            alt="Preview"
+                            className="w-full h-full object-cover rounded"
+                          />
+                          <div className="absolute inset-0 bg-black bg-opacity-40 flex items-center justify-center rounded">
+                            <span className="text-white text-sm">Tap to change</span>
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="flex flex-col items-center">
-                    <Upload className="w-5 sm:w-6 h-5 sm:h-6 text-gray-400" />
-                  </div>
-                )}
-              </label>
+                    ) : (
+                      <div className="flex flex-col items-center">
+                        <Upload className="w-5 sm:w-6 h-5 sm:h-6 text-gray-400" />
+                      </div>
+                    )}
+                  </label>
+                </div>
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Submit Button - Always enabled */}
           <button
