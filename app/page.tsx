@@ -1,11 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import Image from 'next/image'
 import { Zap, Target, Upload, CheckCircle, MoreVertical, LogOut, ChevronLeft, ChevronRight } from 'lucide-react'
-import { createClient } from '@/lib/supabase/client'
-import { useRouter } from 'next/navigation'
-import type { User } from '@supabase/supabase-js'
 
 // Type definitions
 interface LogEntry {
@@ -32,21 +28,17 @@ export default function TEATracker() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [, setShowSuccess] = useState(false)
   const [celebration, setCelebration] = useState<Celebration | null>(null)
-  const [user, setUser] = useState<User | null>(null)
+  const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [logs, setLogs] = useState<LogEntry[]>([])
-  const [noteLength, setNoteLength] = useState(0)
   const [showMenu, setShowMenu] = useState(false)
   const [expandedImage, setExpandedImage] = useState<string | null>(null)
   const [currentPage, setCurrentPage] = useState(1)
-  
-  const router = useRouter()
-  const isAuthenticated = !!user
 
   const MAX_NOTE_LENGTH = 100
   const MAX_FILE_SIZE = 5 * 1024 * 1024 // 5MB
   const ITEMS_PER_PAGE = 10
 
-  // Energy levels with past tense labels - moved up to avoid hoisting issues
+  // Energy levels with past tense labels
   const energyLevels = [
     { value: 1, label: 'Exhausted', icon: '🪫', color: '#ef4444' },
     { value: 2, label: 'Drained', icon: '☕', color: '#f97316' },
@@ -75,69 +67,19 @@ export default function TEATracker() {
     }
   }
 
-  // Check authentication status and load logs
+  // Load logs from localStorage on mount
   useEffect(() => {
-    const supabase = createClient()
-    
-    const getUser = async () => {
-      const { data: { user } } = await supabase.auth.getUser()
-      setUser(user)
+    const savedLogs = localStorage.getItem('tea-logs')
+    if (savedLogs) {
+      setLogs(JSON.parse(savedLogs))
     }
     
-    getUser()
-
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null)
-    })
-
-    return () => subscription.unsubscribe()
+    // Check if user is authenticated (simplified for demo)
+    const authStatus = localStorage.getItem('tea-authenticated')
+    if (authStatus === 'true') {
+      setIsAuthenticated(true)
+    }
   }, [])
-
-  // Load logs based on authentication status
-  useEffect(() => {
-    const supabase = createClient()
-    
-    const loadLogs = async () => {
-      if (isAuthenticated && user) {
-        // Load from Supabase for authenticated users
-        const { data, error } = await supabase
-          .from('tea_logs')
-          .select('*')
-          .eq('user_id', user.id)
-          .order('created_at', { ascending: false })
-        
-        if (error) {
-          console.error('Error loading logs:', error)
-          // Fallback to localStorage
-          const savedLogs = localStorage.getItem('tea-logs')
-          if (savedLogs) {
-            setLogs(JSON.parse(savedLogs))
-          }
-        } else {
-          // Transform Supabase data to match our LogEntry interface
-          const transformedLogs: LogEntry[] = data.map((log: Record<string, unknown>) => ({
-            id: log.id as string,
-            timestamp: log.timestamp as string,
-            energy: log.energy as number,
-            energyLabel: energyLevels.find(l => l.value === (log.energy as number))?.label || '',
-            attention: log.attention as string,
-            note: log.note as string | null,
-            imagePreview: log.image_url as string | null
-          }))
-          setLogs(transformedLogs)
-        }
-      } else {
-        // Load from localStorage for non-authenticated users
-        const savedLogs = localStorage.getItem('tea-logs')
-        if (savedLogs) {
-          setLogs(JSON.parse(savedLogs))
-        }
-      }
-    }
-
-    loadLogs()
-  }, [isAuthenticated, user])
 
   // Attention states with consistent tense
   const attentionStates = [
@@ -162,7 +104,6 @@ export default function TEATracker() {
     const text = e.target.value
     if (text.length <= MAX_NOTE_LENGTH) {
       setNote(text)
-      setNoteLength(text.length)
     }
   }
 
@@ -214,42 +155,16 @@ export default function TEATracker() {
       imagePreview: imagePreview,
     }
 
-    try {
-      if (isAuthenticated && user) {
-        // Save to Supabase for authenticated users
-        const supabase = createClient()
-        const { error } = await supabase
-          .from('tea_logs')
-          .insert({
-            user_id: user.id,
-            timestamp: newLog.timestamp,
-            energy: newLog.energy,
-            attention: newLog.attention,
-            note: newLog.note,
-            image_url: newLog.imagePreview
-          })
+    // Save to logs
+    const updatedLogs = [newLog, ...logs]
+    setLogs(updatedLogs)
+    localStorage.setItem('tea-logs', JSON.stringify(updatedLogs))
 
-        if (error) {
-          console.error('Error saving to Supabase:', error)
-          // Fallback to localStorage
-          const updatedLogs = [newLog, ...logs]
-          setLogs(updatedLogs)
-          localStorage.setItem('tea-logs', JSON.stringify(updatedLogs))
-        } else {
-          // Successfully saved to Supabase, add to local state
-          const updatedLogs = [newLog, ...logs]
-          setLogs(updatedLogs)
-        }
-      } else {
-        // Save to localStorage for non-authenticated users
-        const updatedLogs = [newLog, ...logs]
-        setLogs(updatedLogs)
-        localStorage.setItem('tea-logs', JSON.stringify(updatedLogs))
-      }
+    // Reset to first page when new entry is added
+    setCurrentPage(1)
 
-      // Reset to first page when new entry is added
-      setCurrentPage(1)
-
+    // Simulate API call
+    setTimeout(() => {
       setIsSubmitting(false)
       setShowSuccess(true)
 
@@ -261,7 +176,6 @@ export default function TEATracker() {
       setEnergy(3)
       setAttention('focused')
       setNote('')
-      setNoteLength(0)
       setImage(null)
       setImagePreview(null)
 
@@ -270,22 +184,25 @@ export default function TEATracker() {
         setShowSuccess(false)
         setCelebration(null)
       }, 3000)
-    } catch (error) {
-      console.error('Error in handleSubmit:', error)
-      setIsSubmitting(false)
-      alert('Error saving entry. Please try again.')
-    }
+    }, 500)
   }
 
-  const handleLogout = async () => {
-    const supabase = createClient()
-    await supabase.auth.signOut()
+  const handleLogout = () => {
+    setIsAuthenticated(false)
+    localStorage.setItem('tea-authenticated', 'false')
     setShowMenu(false)
-    router.push('/')
   }
 
-  const handleSignUpClick = () => {
-    router.push('/auth/sign-up')
+  const handleLogin = () => {
+    // Simplified login for demo
+    setIsAuthenticated(true)
+    localStorage.setItem('tea-authenticated', 'true')
+  }
+
+  const handleSignUp = () => {
+    // Simplified sign up for demo
+    setIsAuthenticated(true)
+    localStorage.setItem('tea-authenticated', 'true')
   }
 
   const formatTimestamp = (timestamp: string) => {
@@ -311,39 +228,67 @@ export default function TEATracker() {
     <div className="min-h-screen bg-gray-50 p-4 pb-safe">
       <div className="max-w-2xl mx-auto space-y-6">
         {/* Main Tracker Card */}
-        <div className="w-full bg-white rounded-2xl shadow-lg p-4 sm:p-6 space-y-4 sm:space-y-6 relative">
+        <div className="w-full bg-white rounded-2xl shadow-lg p-4 sm:p-6 space-y-4 sm:space-y-6">
           {/* Header */}
-          <div>
-            <h1 className="text-xl sm:text-2xl font-bold text-gray-800">
-              Track
-            </h1>
-            <p className="text-xs sm:text-sm text-gray-500 mt-1">
-              Time · Energy · Attention
-            </p>
-          </div>
-
-          {/* Three dots menu for logged in users */}
-          {isAuthenticated && (
-            <div className="absolute top-4 right-4">
-              <button
-                onClick={() => setShowMenu(!showMenu)}
-                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-              >
-                <MoreVertical className="w-5 h-5 text-gray-600" />
-              </button>
-              {showMenu && (
-                <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-1">
-                  <button
-                    onClick={handleLogout}
-                    className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
-                  >
-                    <LogOut className="w-4 h-4" />
-                    Log Out
-                  </button>
-                </div>
-              )}
+          <div className="flex justify-between items-baseline">
+            {/* Left side - Track title and subtitle */}
+            <div>
+              <h1 className="text-xl sm:text-2xl font-bold text-gray-800">
+                Track
+              </h1>
+              <p className="text-xs sm:text-sm text-gray-500 mt-1">
+                Time · Energy · Attention
+              </p>
             </div>
-          )}
+
+            {/* Right side - Auth section */}
+            {isAuthenticated ? (
+              <div className="relative">
+                <button
+                  onClick={() => setShowMenu(!showMenu)}
+                  className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                >
+                  <MoreVertical className="w-5 h-5 text-gray-600" />
+                </button>
+                {showMenu && (
+                  <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-10">
+                    <button
+                      onClick={handleLogout}
+                      className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
+                    >
+                      <LogOut className="w-4 h-4" />
+                      Log Out
+                    </button>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="flex items-baseline">
+                <button 
+                  onClick={handleLogin}
+                  className="text-xs sm:text-sm text-gray-500 hover:text-gray-700 transition-colors font-medium mr-2"
+                >
+                  Log In
+                </button>
+                <div className="text-right">
+                  <button 
+                    onClick={handleSignUp}
+                    className="px-4 sm:px-6 py-1.5 sm:py-2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-lg hover:from-indigo-700 hover:to-purple-700 shadow-md hover:shadow-lg transform hover:scale-105 transition-all font-medium text-xs sm:text-sm whitespace-nowrap"
+                  >
+                    Sign Up
+                  </button>
+                  <div className="mt-1">
+                    <p className="text-[10px] text-gray-500 leading-tight">
+                      Sign up to save your logs
+                    </p>
+                    <p className="text-[10px] text-gray-500 leading-tight">
+                      permanently and unlock analytics (soon™)
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
 
           {/* Energy Level */}
           <div className="space-y-2">
@@ -392,18 +337,17 @@ export default function TEATracker() {
           </div>
 
           {/* Optional Context */}
-          <div className="space-y-2">
-            <label className="flex items-center justify-between text-xs sm:text-sm font-medium text-gray-700">
-              <span>Context (optional)</span>
-              <span className="text-[10px] text-gray-400">{noteLength}/{MAX_NOTE_LENGTH}</span>
-            </label>
+          <div className="space-y-1">
             <input
               type="text"
               value={note}
               onChange={handleNoteChange}
               placeholder="What were you just doing?"
-              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent bg-white text-gray-900 dark:bg-white dark:text-gray-900"
+              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent bg-white text-gray-900"
             />
+            <div className="flex justify-end">
+              <span className="text-[10px] text-gray-400">{note.length}/{MAX_NOTE_LENGTH}</span>
+            </div>
           </div>
 
           {/* Image Upload - Minimal */}
@@ -423,11 +367,10 @@ export default function TEATracker() {
                 {imagePreview ? (
                   <div className="relative w-full">
                     <div className="relative w-full h-24 sm:h-32">
-                      <Image
+                      <img
                         src={imagePreview}
                         alt="Preview"
-                        fill
-                        className="object-cover rounded"
+                        className="w-full h-full object-cover rounded"
                       />
                       <div className="absolute inset-0 bg-black bg-opacity-40 flex items-center justify-center rounded">
                         <span className="text-white text-sm">Tap to change</span>
@@ -437,7 +380,6 @@ export default function TEATracker() {
                 ) : (
                   <div className="flex flex-col items-center">
                     <Upload className="w-5 sm:w-6 h-5 sm:h-6 text-gray-400" />
-                    <span className="text-[10px] text-gray-400 mt-1 group-hover:text-gray-600">Screenshot (optional)</span>
                   </div>
                 )}
               </label>
@@ -459,7 +401,7 @@ export default function TEATracker() {
             ) : (
               <>
                 <CheckCircle className="w-4 sm:w-5 h-4 sm:h-5" />
-                Track TEA
+                Track it
               </>
             )}
           </button>
@@ -600,25 +542,29 @@ export default function TEATracker() {
         {/* Recent Logs - New Layout */}
         {logs.length > 0 && (
           <div className="space-y-4">
-            <h2 className="text-base sm:text-lg font-semibold text-gray-800">TEA Tracks</h2>
+            <h2 className="text-base sm:text-lg font-semibold text-gray-800">History</h2>
             <div className="space-y-2">
               {currentLogs.map((log) => {
                 const logEnergy = energyLevels.find(l => l.value === log.energy)
                 const logAttention = attentionStates.find(a => a.value === log.attention)
                 return (
-                  <div key={log.id} className="bg-white rounded-lg shadow-sm p-3 flex gap-3 min-h-[100px]">
-                    {/* Left side - Text content stacked vertically */}
-                    <div className="flex-1 space-y-1">
-                      <span className="text-[10px] text-gray-400">{formatTimestamp(log.timestamp)}</span>
-                      <div className="text-sm">
-                        <span>{logEnergy?.icon} {logEnergy?.label}</span>
+                  <div key={log.id} className="bg-white rounded-lg shadow-sm p-3 flex gap-3">
+                    {/* Left side - Text content */}
+                    <div className="flex-1">
+                      <div className="flex justify-between items-start">
+                        <div className="space-y-1">
+                          <div className="text-sm">
+                            {logEnergy?.icon} {logEnergy?.label}
+                          </div>
+                          <div className="text-sm">
+                            {logAttention?.emoji} {logAttention?.label}
+                          </div>
+                          {log.note && (
+                            <p className="text-xs text-gray-600">{log.note}</p>
+                          )}
+                        </div>
+                        <span className="text-[10px] text-gray-400">{formatTimestamp(log.timestamp)}</span>
                       </div>
-                      <div className="text-sm">
-                        <span>{logAttention?.emoji} {logAttention?.label}</span>
-                      </div>
-                      {log.note && (
-                        <p className="text-xs text-gray-600">{log.note}</p>
-                      )}
                     </div>
                     
                     {/* Right side - Image if exists */}
@@ -627,11 +573,10 @@ export default function TEATracker() {
                         className="w-16 h-16 relative rounded cursor-pointer hover:opacity-90 transition-opacity"
                         onClick={() => setExpandedImage(log.imagePreview)}
                       >
-                        <Image
+                        <img
                           src={log.imagePreview}
                           alt="Log screenshot"
-                          fill
-                          className="object-cover rounded"
+                          className="w-full h-full object-cover rounded"
                         />
                       </div>
                     )}
@@ -678,31 +623,6 @@ export default function TEATracker() {
               </div>
             )}
 
-            {/* Auth CTA - Only for non-authenticated users */}
-            {!isAuthenticated && logs.length > 0 && (
-              <div className="text-center py-4">
-                <p className="text-xs sm:text-sm text-gray-600 mb-3">
-                  {logs.length > ITEMS_PER_PAGE 
-                    ? `Sign up to view all ${logs.length} tracks and unlock full history browsing`
-                    : "Sign up to save your logs permanently and unlock analytics (soon™)"
-                  }
-                </p>
-                <div className="flex gap-2 justify-center">
-                  <button 
-                    onClick={handleSignUpClick}
-                    className="px-4 py-2.5 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-lg hover:from-indigo-700 hover:to-purple-700 shadow-md hover:shadow-lg transform hover:scale-105 transition-all font-medium"
-                  >
-                    Sign Up
-                  </button>
-                  <button 
-                    onClick={() => router.push('/auth/login')}
-                    className="px-4 py-2.5 bg-white text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 shadow-md hover:shadow-lg transform hover:scale-105 transition-all font-medium"
-                  >
-                    Log In
-                  </button>
-                </div>
-              </div>
-            )}
           </div>
         )}
 
@@ -713,16 +633,14 @@ export default function TEATracker() {
             onClick={() => setExpandedImage(null)}
           >
             <div className="relative max-w-4xl max-h-full">
-              <Image
+              <img
                 src={expandedImage}
                 alt="Expanded screenshot"
-                width={800}
-                height={600}
-                className="object-contain"
+                className="max-w-full max-h-full object-contain"
               />
               <button
                 onClick={() => setExpandedImage(null)}
-                className="absolute top-4 right-4 text-white bg-black bg-opacity-50 rounded-full p-2"
+                className="absolute top-4 right-4 text-white bg-black bg-opacity-50 rounded-full p-2 hover:bg-opacity-75"
               >
                 ✕
               </button>
