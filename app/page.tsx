@@ -19,6 +19,17 @@ interface Celebration {
   message: string
 }
 
+interface StreakData {
+  dailiesCount: number // Current day's track count (1-8)
+  dayCount: number // Number of consecutive days
+  weekCount: number // Number of consecutive weeks
+  monthCount: number // Number of consecutive months
+  yearCount: number // Number of consecutive years
+  currentTier: number // Current exponent tier (1-8)
+  lastLogDate: string | null
+  streakStartDate: string | null
+}
+
 export default function TEATracker() {
   const [energy, setEnergy] = useState(3) // Default to Steady
   const [attention, setAttention] = useState('focused') // Default to Focused
@@ -33,6 +44,16 @@ export default function TEATracker() {
   const [showMenu, setShowMenu] = useState(false)
   const [expandedImage, setExpandedImage] = useState<string | null>(null)
   const [currentPage, setCurrentPage] = useState(1)
+  const [streakData, setStreakData] = useState<StreakData>({
+    dailiesCount: 0,
+    dayCount: 0,
+    weekCount: 0,
+    monthCount: 0,
+    yearCount: 0,
+    currentTier: 1,
+    lastLogDate: null,
+    streakStartDate: null
+  })
 
   const MAX_NOTE_LENGTH = 100
   const MAX_FILE_SIZE = 5 * 1024 * 1024 // 5MB
@@ -67,11 +88,138 @@ export default function TEATracker() {
     }
   }
 
-  // Load logs from localStorage on mount
+  // Enhanced exponential streak calculation
+  const calculateStreakFromLogs = (logs: LogEntry[]): StreakData => {
+    if (logs.length === 0) {
+      return {
+        dailiesCount: 0,
+        dayCount: 0,
+        weekCount: 0,
+        monthCount: 0,
+        yearCount: 0,
+        currentTier: 1,
+        lastLogDate: null,
+        streakStartDate: null
+      }
+    }
+
+    // Sort logs by date (newest first)
+    const sortedLogs = [...logs].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+    
+    // Group logs by date and count dailies per day
+    const logsByDate = new Map<string, number>()
+    sortedLogs.forEach(log => {
+      const dateKey = new Date(log.timestamp).toDateString()
+      logsByDate.set(dateKey, (logsByDate.get(dateKey) || 0) + 1)
+    })
+
+    // Get sorted unique dates
+    const uniqueDates = Array.from(logsByDate.keys()).sort((a, b) => new Date(b).getTime() - new Date(a).getTime())
+    
+    if (uniqueDates.length === 0) {
+      return {
+        dailiesCount: 0,
+        dayCount: 0,
+        weekCount: 0,
+        monthCount: 0,
+        yearCount: 0,
+        currentTier: 1,
+        lastLogDate: null,
+        streakStartDate: null
+      }
+    }
+
+    const now = new Date()
+    const today = now.toDateString()
+    const gracePeriod = new Date(now.getTime() - 36 * 60 * 60 * 1000).toDateString() // 36 hours ago
+
+    // Check if we're within grace period
+    const latestDate = uniqueDates[0]
+    const isWithinGracePeriod = latestDate === today || new Date(latestDate) >= new Date(gracePeriod)
+
+    if (!isWithinGracePeriod) {
+      return {
+        dailiesCount: 0,
+        dayCount: 0,
+        weekCount: 0,
+        monthCount: 0,
+        yearCount: 0,
+        currentTier: 1,
+        lastLogDate: sortedLogs[0].timestamp,
+        streakStartDate: null
+      }
+    }
+
+    // Calculate current day's dailies count
+    const todayCount = logsByDate.get(today) || 0
+    const latestDayCount = logsByDate.get(latestDate) || 0
+    const dailiesCount = Math.min(todayCount > 0 ? todayCount : latestDayCount, 8)
+
+    // Calculate consecutive days and current tier
+    let dayCount = 0
+    let currentTier = 1
+    let streakStartDate: string | null = null
+    let currentDayTier = 1
+
+    // Find consecutive days and track tier consistency
+    for (let i = 0; i < uniqueDates.length; i++) {
+      const currentDate = new Date(uniqueDates[i])
+      const dailiesForDay = Math.min(logsByDate.get(uniqueDates[i]) || 0, 8)
+      
+      if (i === 0) {
+        // First day sets the initial tier
+        currentDayTier = dailiesForDay
+        dayCount = 1
+        streakStartDate = uniqueDates[i]
+      } else {
+        // Check if this day is consecutive (within 36 hours)
+        const prevDate = new Date(uniqueDates[i-1])
+        const timeDiff = prevDate.getTime() - currentDate.getTime()
+        const daysDiff = timeDiff / (24 * 60 * 60 * 1000)
+        
+        if (daysDiff <= 1.5) { // Within 36 hours
+          dayCount++
+          streakStartDate = uniqueDates[i]
+          
+          // Update tier based on minimum consistent level
+          if (dailiesForDay < currentDayTier) {
+            currentDayTier = dailiesForDay
+          }
+        } else {
+          break
+        }
+      }
+    }
+
+    currentTier = Math.max(currentDayTier, 1)
+
+    // Calculate weeks, months, years
+    const weekCount = Math.floor(dayCount / 7)
+    const monthCount = Math.floor(weekCount / 4)
+    const yearCount = Math.floor(monthCount / 12)
+
+    return {
+      dailiesCount,
+      dayCount,
+      weekCount,
+      monthCount,
+      yearCount,
+      currentTier,
+      lastLogDate: sortedLogs[0].timestamp,
+      streakStartDate
+    }
+  }
+
+  // Load logs and calculate streaks from localStorage on mount
   useEffect(() => {
     const savedLogs = localStorage.getItem('tea-logs')
     if (savedLogs) {
-      setLogs(JSON.parse(savedLogs))
+      const parsedLogs = JSON.parse(savedLogs)
+      setLogs(parsedLogs)
+      
+      // Calculate and set streak data
+      const calculatedStreaks = calculateStreakFromLogs(parsedLogs)
+      setStreakData(calculatedStreaks)
     }
     
     // Check if user is authenticated (simplified for demo)
@@ -160,6 +308,10 @@ export default function TEATracker() {
     setLogs(updatedLogs)
     localStorage.setItem('tea-logs', JSON.stringify(updatedLogs))
 
+    // Update streak data
+    const updatedStreaks = calculateStreakFromLogs(updatedLogs)
+    setStreakData(updatedStreaks)
+
     // Reset to first page when new entry is added
     setCurrentPage(1)
 
@@ -233,11 +385,59 @@ export default function TEATracker() {
           <div className="space-y-2">
             {/* Row 1: Action Bar - Track, Log In, Sign Up with identical heights */}
             <div className="flex justify-between items-center">
-              {/* Left side - Track title only */}
-              <div className="flex items-center h-10">
+              {/* Left side - Track title with streak */}
+              <div className="flex items-center gap-3 h-10">
                 <h1 className="text-xl sm:text-2xl font-bold text-gray-800">
                   Track
                 </h1>
+                {streakData.dayCount > 0 && (
+                  <div className="flex items-center gap-2">
+                    {/* Dailies count */}
+                    <div className="flex items-center gap-1 px-2 py-1 bg-orange-100 rounded-full">
+                      <span className="text-sm">🔥</span>
+                      <span className="text-xs font-semibold text-orange-700">
+                        {streakData.dailiesCount}
+                      </span>
+                    </div>
+                    
+                    {/* Days with exponent */}
+                    <div className="flex items-center gap-1 px-2 py-1 bg-blue-100 rounded-full">
+                      <span className="text-sm">📅</span>
+                      <span className="text-xs font-semibold text-blue-700">
+                        {streakData.dayCount}
+                        {streakData.currentTier > 1 && (
+                          <sup className="text-[8px]">{streakData.currentTier}</sup>
+                        )}
+                      </span>
+                    </div>
+                    
+                    {/* Weeks with exponent (if any) */}
+                    {streakData.weekCount > 0 && (
+                      <div className="flex items-center gap-1 px-2 py-1 bg-green-100 rounded-full">
+                        <span className="text-sm">📊</span>
+                        <span className="text-xs font-semibold text-green-700">
+                          {streakData.weekCount}
+                          {streakData.currentTier > 1 && (
+                            <sup className="text-[8px]">{streakData.currentTier}</sup>
+                          )}
+                        </span>
+                      </div>
+                    )}
+                    
+                    {/* Months with exponent (if any) */}
+                    {streakData.monthCount > 0 && (
+                      <div className="flex items-center gap-1 px-2 py-1 bg-purple-100 rounded-full">
+                        <span className="text-sm">🏆</span>
+                        <span className="text-xs font-semibold text-purple-700">
+                          {streakData.monthCount}
+                          {streakData.currentTier > 1 && (
+                            <sup className="text-[8px]">{streakData.currentTier}</sup>
+                          )}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
 
               {/* Right side - Auth section */}
