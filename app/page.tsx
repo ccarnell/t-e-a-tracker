@@ -2,6 +2,9 @@
 
 import { useState, useEffect } from 'react'
 import { Upload, CheckCircle, MoreVertical, LogOut, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Edit3, Check, X } from 'lucide-react'
+import { createClient } from '@/lib/supabase/client'
+import { useRouter } from 'next/navigation'
+import type { User } from '@supabase/supabase-js'
 
 // Type definitions
 interface LogEntry {
@@ -40,6 +43,8 @@ export default function TEATracker() {
   const [, setShowSuccess] = useState(false)
   const [celebration, setCelebration] = useState<Celebration | null>(null)
   const [isAuthenticated, setIsAuthenticated] = useState(false)
+  const [, setUser] = useState<User | null>(null)
+  const [, setIsLoading] = useState(true)
   const [logs, setLogs] = useState<LogEntry[]>([])
   const [showMenu, setShowMenu] = useState(false)
   const [expandedImage, setExpandedImage] = useState<string | null>(null)
@@ -57,6 +62,9 @@ export default function TEATracker() {
   const [isSimplifiedMode, setIsSimplifiedMode] = useState(false)
   const [editingTimestamp, setEditingTimestamp] = useState<string | null>(null)
   const [editTimestampValue, setEditTimestampValue] = useState('')
+
+  const router = useRouter()
+  const supabase = createClient()
 
   const MAX_NOTE_LENGTH = 100
   const MAX_FILE_SIZE = 5 * 1024 * 1024 // 5MB
@@ -213,8 +221,39 @@ export default function TEATracker() {
     }
   }
 
-  // Load logs and calculate streaks from localStorage on mount
+  // Initialize authentication and load data
   useEffect(() => {
+    const initializeAuth = async () => {
+      setIsLoading(true)
+      
+      // Get initial session
+      const { data: { session } } = await supabase.auth.getSession()
+      
+      if (session?.user) {
+        setUser(session.user)
+        setIsAuthenticated(true)
+      }
+      
+      setIsLoading(false)
+    }
+
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        if (session?.user) {
+          setUser(session.user)
+          setIsAuthenticated(true)
+        } else {
+          setUser(null)
+          setIsAuthenticated(false)
+        }
+        setIsLoading(false)
+      }
+    )
+
+    initializeAuth()
+
+    // Load logs and calculate streaks from localStorage
     const savedLogs = localStorage.getItem('tea-logs')
     if (savedLogs) {
       const parsedLogs = JSON.parse(savedLogs)
@@ -224,19 +263,16 @@ export default function TEATracker() {
       const calculatedStreaks = calculateStreakFromLogs(parsedLogs)
       setStreakData(calculatedStreaks)
     }
-    
-    // Check if user is authenticated (simplified for demo)
-    const authStatus = localStorage.getItem('tea-authenticated')
-    if (authStatus === 'true') {
-      setIsAuthenticated(true)
-    }
 
     // Load simplified mode preference
     const simplifiedMode = localStorage.getItem('tea-simplified-mode')
     if (simplifiedMode === 'true') {
       setIsSimplifiedMode(true)
     }
-  }, [])
+
+    // Cleanup subscription
+    return () => subscription.unsubscribe()
+  }, [supabase.auth])
 
   // Toggle simplified mode and save preference
   const toggleSimplifiedMode = () => {
@@ -421,22 +457,42 @@ export default function TEATracker() {
     }, 500)
   }
 
-  const handleLogout = () => {
-    setIsAuthenticated(false)
-    localStorage.setItem('tea-authenticated', 'false')
-    setShowMenu(false)
+  const handleLogout = async () => {
+    try {
+      await supabase.auth.signOut()
+      
+      // Clear all user-specific localStorage data for security on shared devices
+      localStorage.removeItem('tea-logs')
+      localStorage.removeItem('last-tea-submit')
+      localStorage.removeItem('tea-simplified-mode')
+      
+      // Reset local state
+      setLogs([])
+      setStreakData({
+        dailiesCount: 0,
+        dayCount: 0,
+        weekCount: 0,
+        monthCount: 0,
+        yearCount: 0,
+        currentTier: 1,
+        lastLogDate: null,
+        streakStartDate: null
+      })
+      setIsSimplifiedMode(false)
+      setCurrentPage(1)
+      
+      setShowMenu(false)
+    } catch (error) {
+      console.error('Error logging out:', error)
+    }
   }
 
   const handleLogin = () => {
-    // Simplified login for demo
-    setIsAuthenticated(true)
-    localStorage.setItem('tea-authenticated', 'true')
+    router.push('/auth/login')
   }
 
   const handleSignUp = () => {
-    // Simplified sign up for demo
-    setIsAuthenticated(true)
-    localStorage.setItem('tea-authenticated', 'true')
+    router.push('/auth/sign-up')
   }
 
   // Timestamp editing handlers
@@ -744,6 +800,7 @@ export default function TEATracker() {
                     {imagePreview ? (
                       <div className="relative w-full">
                         <div className="relative w-full h-24 sm:h-32">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
                           <img
                             src={imagePreview}
                             alt="Preview"
@@ -992,6 +1049,7 @@ export default function TEATracker() {
                             className="w-full h-full relative rounded cursor-pointer hover:opacity-90 transition-opacity border border-gray-200 overflow-hidden"
                             onClick={() => setExpandedImage(log.imagePreview)}
                           >
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
                             <img
                               src={log.imagePreview}
                               alt="Log screenshot"
@@ -1063,6 +1121,7 @@ export default function TEATracker() {
             onClick={() => setExpandedImage(null)}
           >
             <div className="relative max-w-4xl max-h-full">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={expandedImage}
                 alt="Expanded screenshot"
